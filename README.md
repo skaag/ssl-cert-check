@@ -1,3 +1,14 @@
+
+# This is a Fork from Matty9191's repository
+
+You can find it here: https://github.com/Matty9191
+
+I love this script by Matty9191 because it's simple and straightforward, and it does the job. The only reason I forked it is that I wanted the notifications to go to a Slack channel, and I noticed the script hasn't been updated for a couple of years. If you're Matty9191 and you want me to do a pull request, let me know, or you can just copy & paste the code over.
+
+# How to get Slack working
+
+Edit ssl-cert-check and find the variable SLACK_WEBHOOK_URL and make sure to replace "https://hooks.slack.com/services/your-webhook-url" with your actual Slack webhook URL.
+
 # SSL Certification Expiration Checker:
 
 ssl-cert-check is a Bourne shell script that can be used to report on expiring SSL certificates. The script was designed to be run from cron and can e-mail warnings or log alerts through nagios.  
