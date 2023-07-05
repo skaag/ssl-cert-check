@@ -9,6 +9,15 @@ I love this script by Matty9191 because it's simple and straightforward, and it 
 
 Edit ssl-cert-check and find the variable SLACK_WEBHOOK_URL and make sure to replace "https://hooks.slack.com/services/your-webhook-url" with your actual Slack webhook URL.
 
+BUT WAIT: I added support for an .env file so instead of doing the above, create a .env file and add the following two variables:
+
+```
+SLACK_ALARM="TRUE"
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/your-webhook-url"
+```
+
+If you don't want to specify SLACK_ALARM permanently in the .env file you can instead pass an -A to enable SLACK_ALARM which means you can enable/disable Slack alerts dynamically from another script.
+
 # SSL Certification Expiration Checker:
 
 ssl-cert-check is a Bourne shell script that can be used to report on expiring SSL certificates. The script was designed to be run from cron and can e-mail warnings or log alerts through nagios.  
