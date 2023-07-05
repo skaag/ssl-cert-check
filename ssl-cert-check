@@ -311,6 +311,12 @@ PKCSDBPASSWD=""
 # Type of certificate (PEM, DER, NET) (cmdline: -t)
 CERTTYPE="pem"
 
+# Enable Slack notification
+SLACK_ALARM="FALSE"
+
+# Your Slack Webhook URL (note: you can place this in an .env file instead of modifying this file)
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/your-webhook-url"
+
 # Location of system binaries
 AWK=$(command -v awk)
 DATE=$(command -v date)
@@ -320,6 +326,7 @@ PRINTF=$(command -v printf)
 SED=$(command -v sed)
 MKTEMP=$(command -v mktemp)
 FIND=$(command -v find)
+CURL=$(command -v curl)
 
 # Try to find a mail client
 if [ -f /usr/bin/mailx ]; then
@@ -360,6 +367,14 @@ SUMMARY_MIN_PORT=
 # Set the default umask to be somewhat restrictive
 umask 077
 
+#####################################################
+# Purpose: Load environment variables from .env file
+#####################################################
+load_env() {
+    if [ -f .env ]; then
+        export $(cat .env | grep -v '^#' | xargs)
+    fi
+}
 
 #####################################################
 # Purpose: Remove temporary files if the script doesn't
@@ -408,6 +423,22 @@ send_mail() {
             ;;
     esac
 }
+
+
+#####################################################
+### Send Slack message
+### Accepts two parameters:
+###  $1 -> Slack webhook URL
+###  $2 -> Message
+#####################################################
+send_slack_message() {
+    SLACK_WEBHOOK_URL="${1}"
+    MESSAGE="${2}"
+
+    payload="payload={\"text\":\"${MESSAGE}\"}"
+    "$CURL" -X POST -H 'Content-type: application/x-www-form-urlencoded' --data-urlencode "${payload}" "${SLACK_WEBHOOK_URL}"
+}
+
 
 #############################################################################
 # Purpose: Convert a date from MONTH-DAY-YEAR to Julian format
@@ -619,6 +650,7 @@ usage()
     echo "       { [ -s common_name ] && [ -p port] } || { [ -f cert_file ] } || { [ -c cert file ] } || { [ -d cert dir ] }"
     echo ""
     echo "  -a                : Send a warning message through E-mail"
+    echo "  -A                : Send a warning message through Slack"
     echo "  -b                : Will not print header"
     echo "  -c cert file      : Print the expiration date for the PEM or PKCS12 formatted certificate in cert file"
     echo "  -d cert directory : Print the expiration date for the PEM or PKCS12 formatted certificates in cert directory"
@@ -775,19 +807,24 @@ check_file_status() {
     CERTDIFF=$(date_diff "${NOWJULIAN}" "${CERTJULIAN}")
 
     if [ "${CERTDIFF}" -lt 0 ]; then
-        if [ "${ALARM}" = "TRUE" ]; then
-            send_mail "${SENDER}" "${ADMIN}" "Certificate for ${HOST} \"(CN: ${COMMONNAME})\" has expired!" \
-                "The SSL certificate for ${HOST} \"(CN: ${COMMONNAME})\" has expired!"
+        send_mail "${SENDER}" "${ADMIN}" "Certificate for ${HOST} \"(CN: ${COMMONNAME})\" has expired!" \
+            "The SSL certificate for ${HOST} \"(CN: ${COMMONNAME})\" has expired!"
+
+        if [ "${SLACK_ALARM}" = "TRUE" ]; then
+            send_slack_message "${SLACK_WEBHOOK_URL}" "Certificate for ${HOST} (CN: ${COMMONNAME}) has expired! The SSL certificate for ${HOST} (CN: ${COMMONNAME}) has expired!"
         fi
 
         prints "${HOST}" "${PORT}" "Expired" "${CERTDATE}" "${CERTDIFF}" "${CERTISSUER}" "${COMMONNAME}" "${SERIAL}"
         RETCODE_LOCAL=2
 
     elif [ "${CERTDIFF}" -lt "${WARNDAYS}" ]; then
-        if [ "${ALARM}" = "TRUE" ]; then
-            send_mail "${SENDER}" "${ADMIN}" "Certificate for ${HOST} \"(CN: ${COMMONNAME})\" will expire in ${CERTDIFF} days or less" \
-                "The SSL certificate for ${HOST} \"(CN: ${COMMONNAME})\" will expire on ${CERTDATE}"
+        send_mail "${SENDER}" "${ADMIN}" "Certificate for ${HOST} \"(CN: ${COMMONNAME})\" will expire in ${CERTDIFF} days or less" \
+            "The SSL certificate for ${HOST} \"(CN: ${COMMONNAME})\" will expire on ${CERTDATE}"
+
+        if [ "${SLACK_ALARM}" = "TRUE" ]; then
+            send_slack_message "${SLACK_WEBHOOK_URL}" "Certificate for ${HOST} (CN: ${COMMONNAME}) will expire in ${CERTDIFF} days or less. The SSL certificate for ${HOST} (CN: ${COMMONNAME}) will expire on ${CERTDATE}"
         fi
+
         prints "${HOST}" "${PORT}" "Expiring" "${CERTDATE}" "${CERTDIFF}" "${CERTISSUER}" "${COMMONNAME}" "${SERIAL}"
         RETCODE_LOCAL=1
 
@@ -804,10 +841,16 @@ check_file_status() {
 #################################
 ### Start of main program
 #################################
+
+# Load user specified environment variables if a .env file exists
+load_env
+
+# Iterate over CLI options
 while getopts abc:d:e:E:f:hik:nNp:qs:St:Vx: option
 do
     case "${option}" in
         a) ALARM="TRUE";;
+        A) SLACK_ALARM="TRUE";;
         b) NOHEADER="TRUE";;
         c) CERTFILE=${OPTARG};;
         d) CERTDIRECTORY=${OPTARG};;
@@ -839,6 +882,13 @@ done
 if [ ! -f "${OPENSSL}" ]; then
     echo "ERROR: The openssl binary does not exist in ${OPENSSL}."
     echo "FIX: Please modify the \${OPENSSL} variable in the program header."
+    exit 1
+fi
+
+# Check to make sure the curl utility is available
+if [ ! -f "${CURL}" ]; then
+    echo "ERROR: The curl binary is not available."
+    echo "FIX: Please install curl or modify the \${CURL} variable in the program header."
     exit 1
 fi
 
