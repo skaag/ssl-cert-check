@@ -11,10 +11,10 @@ Edit ssl-cert-check and find the variable SLACK_WEBHOOK_URL and make sure to rep
 
 BUT WAIT: I added support for an .env file so instead of doing the above, create a .env file and add the following two variables:
 
-```
+<pre>
 SLACK_ALARM="TRUE"
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/your-webhook-url"
-```
+</pre>
 
 If you don't want to specify SLACK_ALARM permanently in the .env file you can instead pass an -A to enable SLACK_ALARM which means you can enable/disable Slack alerts dynamically from another script.
 
@@ -29,6 +29,7 @@ Usage: ./ssl-cert-check [ -e email address ] [ -E sender email address ] [ -x da
        { [ -s common_name ] && [ -p port] } || { [ -f cert_file ] } || { [ -c cert file ] } || { [ -d cert dir ] }"
 
   -a                : Send a warning message through E-mail
+  -A                : Send a warning message through Slack
   -b                : Will not print header
   -c cert file      : Print the expiration date for the PEM or PKCS12 formatted certificate in cert file
   -d cert directory : Print the expiration date for the PEM or PKCS12 formatted certificates in cert directory
